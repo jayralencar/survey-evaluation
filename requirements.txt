@@ -1,0 +1,6 @@
+openai
+dotenv
+pydantic
+instructor
+typing
+pandas
