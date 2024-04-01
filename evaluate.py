@@ -47,10 +47,10 @@ class ChecklistResponse(OpenAISchema):
 
 
 class Evaluate:
-    def __init__(self, model, data_file) -> None:
+    def __init__(self, model, data_file,k_model) -> None:
         self.model = model
         self.data_file = data_file
-
+        self.k_model = k_model
         load_dotenv()
         
         OPENAI_KEY = os.getenv('OPENAI_API_KEY')
@@ -63,8 +63,12 @@ class Evaluate:
         self.load_data()
     
     def load_data(self):
-        df = pd.read_json(self.data_file, lines=True)
-        self.data = df.to_dict(orient='records')
+        try:
+            df = pd.read_json(self.data_file, lines=True)
+            self.data = df.to_dict(orient='records')
+        except:
+            self.data = json.load(open(self.data_file))
+        
 
     def call_model(self,messages, functions):
         response = self.client.chat.completions.create(
@@ -118,8 +122,8 @@ class Evaluate:
         return re.sub(pattern, replace_placeholder, candidate)
 
     def evaluate(self):
-        k_model = "gpt-4-1106-preview"
-        output_file = f"v4_evaluated_{k_model}_{self.model}_{self.data_file}"
+        
+        output_file = f"outputs/v5_5c_evaluated_{self.k_model}_{self.model}.jsonl"
         lines = 0
         if not os.path.exists(output_file):
             open(output_file, 'w').close()
@@ -136,8 +140,8 @@ class Evaluate:
 
             
             
-            candidate = item["generated_section_text"][k_model]["text"]
-            references = item["generated_section_text"][k_model]["references_sent_to_gpt"]
+            candidate = item["generated_section_text"][self.k_model]["text"]
+            references = item["generated_section_text"][self.k_model]["references_sent_to_gpt"]
 
             candidate = self.replace_references(candidate, references)
 
@@ -152,14 +156,15 @@ class Evaluate:
 
             with open(output_file, 'a') as f:
                 f.write(json.dumps(item)+'\n')
-
+        print(output_file)
 
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--model', type=str, default='gpt-3.5-turbo-16k')
     parser.add_argument('--data_file', type=str, default='scores_autosurvey.jsonl')
+    parser.add_argument('--k_model', type=str, default="gpt-3.5-turbo-16k")
     args = parser.parse_args()
 
-    evaluate = Evaluate(args.model, args.data_file)
+    evaluate = Evaluate(args.model, args.data_file,args.k_model)
     evaluate.evaluate()
 
